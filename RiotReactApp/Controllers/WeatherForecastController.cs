@@ -35,5 +35,39 @@ namespace RiotReactApp.Controllers
             })
             .ToArray();
         }
+
+        //[HttpGet] TODO move this into the one HttpGet method
+        public IEnumerable<Game> GetGame()
+        {
+            // Using https://developer.riotgames.com/apis
+
+            /**
+             * (1) Get {encryptedAccountId} information using 
+             *      print(requests.get(
+                    "https://{region}.api.riotgames.com//lol/summoner/v4/summoners/by-name/{summonerName}", 
+                    headers={"Accept": "application/json","X-Riot-Token": config["api-key"]}
+                    ).json())
+             * (2) Use that information to print out match-lists using this API:
+             *      print(requests.get(
+                    "https://{region}.api.riotgames.com/lol/match/v4/matchlists/by-account/{encryptedAccountId}", 
+                    headers={"Accept": "application/json","X-Riot-Token": config["api-key"]}
+                    ).json())
+                (3) Use filtering to limit the returned results 
+                    - TODOs: 
+                        (a) maybe add fields to let the user control this
+                        (b) Add a next button to enable pagination of results using beginIndex and endIndex
+                (4) Return results as a list of games (IEnumerable<Game>)
+
+             */
+            var rng = new Random();
+
+            return Enumerable.Range(1, 5).Select(index => new Game
+            {
+                Date = DateTime.Now.AddDays(index),
+                Result = "Win",
+                GameLength = rng.Next(3, 59),
+            })
+            .ToArray();
+        }
     }
 }

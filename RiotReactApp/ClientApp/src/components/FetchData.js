@@ -5,29 +5,25 @@ export class FetchData extends Component {
 
     constructor(props) {
         super(props);
-        this.state = { forecasts: [], loading: true };
+        this.state = { forecasts: [], loading: true }; // TODO: Add games
     }
 
     componentDidMount() {
-        this.populateWeatherData();
+        this.populateData();
     }
 
 
+    // TODO: add a separate form for entering your Riot API key (maybe a password field so it's hidden)
     renderPage(forecasts) {
         return (
             <div>
-                { this.renderEntryForm() }
-                { this.renderForecastsTable(forecasts) }
+                { this.renderEntryForm() } 
+                {this.renderForecastsTable(forecasts)}
             </div>
         );
     }
 
     renderEntryForm() {
-
-        const options = [
-            'NA', 'EUW', 'EUNE', 'KR', 'LAN'
-        ];
-
         return (
             <div>
                 <form onSubmit={this.onEntryFormSubmit}>
@@ -74,11 +70,10 @@ export class FetchData extends Component {
     getRegionSelect() {
         return (
             <select id="region" name="Region Select" onChange={this.onSelectRegion} placeholder='Select your region'>
-                <option value="NA">NA</option>
-                <option value="EUW">EUW</option>
-                <option value="EUNE">EUNE</option>
+                <option value="NA1">NA</option>
+                <option value="EUW1">EUW</option>
+                <option value="EUN1">EUNE</option>
                 <option value="KR">KR</option>
-                <option value="LAN">LAN</option>
             </select>
         );
     }
@@ -97,7 +92,7 @@ export class FetchData extends Component {
         );
     }
 
-    async populateWeatherData() {
+    async populateData() {
         const response = await fetch('weatherforecast');
         const data = await response.json();
         this.setState({ forecasts: data, loading: false });
