@@ -1,75 +1,133 @@
-import React, { Component } from 'react';
+import React, { Component } from "react";
+import './NavMenu.css';
 
 export class FetchData extends Component {
   static displayName = FetchData.name;
 
+    /** Private fields */
+    __initialRegion = "NA1";
+
     constructor(props) {
         super(props);
-        this.state = { forecasts: [], loading: true }; // TODO: Add games
+        this.state = {
+            games: [], loading: true, summonerName: "",
+            region: "", apiKey: ""
+        };
+
+        this.onSelectRegion = this.onSelectRegion.bind(this);
+        this.onEntryFormSubmit = this.onEntryFormSubmit.bind(this);
+        this.onChangeInput = this.onChangeInput.bind(this);
+        this.onApiFormChange = this.onApiFormChange.bind(this);
     }
 
     componentDidMount() {
-        this.populateData();
+        this.populatePage();
     }
 
-
-    // TODO: add a separate form for entering your Riot API key (maybe a password field so it's hidden)
-    renderPage(forecasts) {
+    // TODO: add a separate form for entering your Riot API key (maybe a password field so it"s hidden)
+    renderPage(games) {
         return (
             <div>
-                { this.renderEntryForm() } 
-                {this.renderForecastsTable(forecasts)}
+                {this.renderEntryForm()} 
+                { this.renderGamesTable(games) }
             </div>
         );
     }
 
     renderEntryForm() {
         return (
-            <div>
+            <div className="submit-forms">
                 <form onSubmit={this.onEntryFormSubmit}>
-                    <p><input type='text' placeholder='Summoner Name' name='SummonerName' /> { this.getRegionSelect() }</p>
+                    <p><input type="text" placeholder="Summoner Name" value={this.state.summonerName} onChange={ this.onChangeInput } name="SummonerName" /> { this.getRegionSelect() }</p>
+                    <p><input type="text" placeholder="Enter Riot API key" value={this.state.apiKey} onChange={this.onApiFormChange} /></p>
                     <p><button>Get Match History</button></p>
                 </form>
             </div>
         );
     }
 
-    onSelectRegion() {
+    onSelectRegion(event) {
         // get the current region selection and store it in a property
+        this.setState({ region: event.target.value });
+        event.preventDefault();
     }
 
-    onEntryFormSubmit() {
-        // get the summoner name, validate it on the server (character length and no special characters) and then search Riots API and update the table below
+    onChangeInput(event) {
+        this.setState({ summonerName: event.target.value });
+        event.preventDefault();
     }
 
-    renderForecastsTable(forecasts) {
+    onEntryFormSubmit(event) {
+        //TODO: Validate our input summoner name and API key to the best of my ability
+        //TODO2: Move validation to the web server
+
+
+        alert("Summoner name: " + this.getSummonerName() + "\nRegion: " + this.getRegion() + "\nAPI Key: " + this.getApiKey());
+        this.populateData();
+        event.preventDefault();
+    }
+
+    onApiFormChange(event) {
+        this.setState({ apiKey: event.target.value });
+        event.preventDefault();
+    }
+
+    getSummonerName() {
+        return this.state.summonerName;
+    }
+
+    getRegion() {
+        return this.state.region.length > 0 ? this.state.region : this.__initialRegion;
+    }
+
+    getApiKey() {
+        return this.state.apiKey;
+    }
+
+    renderGamesTable(games) {
+        let gameTable = (games.length && games.length > 0) ?
+            this.renderGamesTableBody(games) :
+            <div className="placeholder-text">Please enter valid search criteria</div>;
+
+        let tableTitle = (games.length && games.length > 0) ?
+           this.state.summonerName + "'s last 10 games" : "";
+
+        // TODO: Make the table captions better!
         return (
-            <table className='table table-striped' aria-labelledby="tabelLabel">
-            <thead>
-                <tr>
-                <th>Date</th>
-                <th>Temp. (C)</th>
-                <th>Temp. (F)</th>
-                <th>Summary</th>
-                </tr>
-            </thead>
-            <tbody>
-                {forecasts.map(forecast =>
-                <tr key={forecast.date}>
-                    <td>{forecast.date}</td>
-                    <td>{forecast.temperatureC}</td>
-                    <td>{forecast.temperatureF}</td>
-                    <td>{forecast.summary}</td>
-                </tr>
-                )}
-            </tbody>
+            <table className="table table-striped" aria-labelledby="tabelLabel">
+                <caption>{tableTitle}</caption>
+                <thead>
+                    <tr>
+                    <th>Date</th>
+                    <th>Win/Loss</th>
+                    <th>Champion</th>
+                    <th>Game Length (minutes)</th>
+                    </tr>
+                </thead>
+                { gameTable}
             </table>
         );
     }
 
+    renderGamesTableBody(games) {
+        return (
+            <tbody>
+                {games.map(game =>
+                    <tr key={game.date}>
+                        <td>{game.date}</td>
+                        <td>{game.result}</td>
+                        <td>{game.champion}</td>
+                        <td>{game.gameLength}</td>
+                    </tr>
+                )}
+            </tbody>
+        )
+    }
+
+
     getRegionSelect() {
         return (
-            <select id="region" name="Region Select" onChange={this.onSelectRegion} placeholder='Select your region'>
+            <select id="region" name="Region Select" value={ this.state.region } onChange={this.onSelectRegion} placeholder="Select your region">
                 <option value="NA1">NA</option>
                 <option value="EUW1">EUW</option>
                 <option value="EUN1">EUNE</option>
@@ -81,7 +139,7 @@ export class FetchData extends Component {
     render() {
         let contents = this.state.loading
             ? <p><em>Loading...</em></p>
-            : this.renderPage(this.state.forecasts);
+            : this.renderPage(this.state.games);
 
         return (
             <div>
@@ -93,8 +151,19 @@ export class FetchData extends Component {
     }
 
     async populateData() {
-        const response = await fetch('weatherforecast');
+        const response = await fetch("game", {
+            method: 'post',
+            body: JSON.stringify({
+                SummonerName: this.getSummonerName(),
+                Region: this.getRegion(),
+                ApiKey: this.getApiKey()
+            })
+        });
         const data = await response.json();
-        this.setState({ forecasts: data, loading: false });
+        this.setState({ games: data, loading: false });
+    }
+
+    populatePage() {
+        this.setState({ loading: false });
     }
 }
