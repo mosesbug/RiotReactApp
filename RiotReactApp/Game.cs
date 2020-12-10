@@ -6,10 +6,12 @@ namespace RiotReactApp
     {
         public string Date { get; set; }
 
-        public string Result { get; set; } // Win or Loss -> use https://developer.riotgames.com/apis#match-v4/GET_getMatchlist to get gameId and then find that match for this info
+        public string Result { get; set; } // Win/Loss
 
         public string Champion { get; set; } // Champion played
 
         public int GameLength { get; set; }
+
+        public string QueueType { get; set; }
     }
 }

@@ -6,12 +6,13 @@ export class FetchData extends Component {
 
     /** Private fields */
     __initialRegion = "NA1";
+    __submittedName = "";
 
     constructor(props) {
         super(props);
         this.state = {
-            games: [], loading: true, summonerName: "",
-            region: "", apiKey: ""
+            games: [], loading: true, tableLoading: false,
+            summonerName: "", region: "", apiKey: ""
         };
 
         this.onSelectRegion = this.onSelectRegion.bind(this);
@@ -28,7 +29,7 @@ export class FetchData extends Component {
     renderPage(games) {
         return (
             <div>
-                {this.renderEntryForm()} 
+                { this.renderEntryForm() } 
                 { this.renderGamesTable(games) }
             </div>
         );
@@ -61,8 +62,9 @@ export class FetchData extends Component {
         //TODO: Validate our input summoner name and API key to the best of my ability
         //TODO2: Move validation to the web server
 
-
-        alert("Summoner name: " + this.getSummonerName() + "\nRegion: " + this.getRegion() + "\nAPI Key: " + this.getApiKey());
+        // TODO: Make a debug mode
+        // alert("Summoner name: " + this.getSummonerName() + "\nRegion: " + this.getRegion() + "\nAPI Key: " + this.getApiKey()); // MHB TURN OFF FOR NOW
+        this.__submittedName = this.getSummonerName();
         this.populateData();
         event.preventDefault();
     }
@@ -85,12 +87,8 @@ export class FetchData extends Component {
     }
 
     renderGamesTable(games) {
-        let gameTable = (games.length && games.length > 0) ?
-            this.renderGamesTableBody(games) :
-            <div className="placeholder-text">Please enter valid search criteria</div>;
-
         let tableTitle = (games.length && games.length > 0) ?
-           this.state.summonerName + "'s last 10 games" : "";
+            this.__submittedName + "'s last 10 games" : "";
 
         // TODO: Make the table captions better!
         return (
@@ -102,14 +100,30 @@ export class FetchData extends Component {
                     <th>Win/Loss</th>
                     <th>Champion</th>
                     <th>Game Length (minutes)</th>
+                    <th>Game Mode</th>
                     </tr>
                 </thead>
-                { gameTable}
+                { this.renderGameTableBodyOuter(games) }
             </table>
         );
     }
 
-    renderGamesTableBody(games) {
+    renderGameTableBodyOuter(games) {
+        let gameTable;
+        if (this.state.tableLoading) {
+            gameTable = <div className="placeholder-text">Loading...</div>;
+        }
+        else if (games.length && games.length > 0) {
+            gameTable = this.renderGamesTableBodyInner(games);
+        }
+        else {
+            gameTable = <div className="placeholder-text">Please enter valid search criteria</div>;
+        }
+
+        return gameTable;
+    }
+
+    renderGamesTableBodyInner(games) {
         return (
             <tbody>
                 {games.map(game =>
@@ -118,6 +132,7 @@ export class FetchData extends Component {
                         <td>{game.result}</td>
                         <td>{game.champion}</td>
                         <td>{game.gameLength}</td>
+                        <td>{game.queueType}</td>
                     </tr>
                 )}
             </tbody>
@@ -151,6 +166,7 @@ export class FetchData extends Component {
     }
 
     async populateData() {
+        this.setState({ games: [], tableLoading: true });
         const response = await fetch("game", {
             method: 'post',
             body: JSON.stringify({
@@ -160,7 +176,7 @@ export class FetchData extends Component {
             })
         });
         const data = await response.json();
-        this.setState({ games: data, loading: false });
+        this.setState({ games: data, tableLoading: false });
     }
 
     populatePage() {
