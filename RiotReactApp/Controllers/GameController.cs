@@ -61,7 +61,10 @@ namespace RiotReactApp.Controllers
              * (1) Get {encryptedAccountId} 
              */
             __req = requests.First();
+            
             // TODO: Status code error handling (try/catch?)
+                // 1) Summoner not found
+                // 2) 5xx errors
             // TODO: Coding style, some thing should be stored as properties
             __summoner = DeserializeObject<SummonerDTO>(await GetAsyncFromRiotApi(".api.riotgames.com/lol/summoner/v4/summoners/by-name/" + __req.SummonerName, new List<Filter>()));                                                                                                         // TODO: Coding style, some thing should be stored as properties
 
