@@ -8,7 +8,9 @@ namespace RiotReactApp
 
         public string Result { get; set; } // Win/Loss
 
-        public string Champion { get; set; } // Champion played
+        public string ChampionName { get; set; }
+
+        public string ChampionImage { get; set; }  // Used for an href on the client
 
         public int GameLength { get; set; }
 

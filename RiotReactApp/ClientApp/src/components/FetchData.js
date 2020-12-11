@@ -18,7 +18,7 @@ export class FetchData extends Component {
         this.onSelectRegion = this.onSelectRegion.bind(this);
         this.onEntryFormSubmit = this.onEntryFormSubmit.bind(this);
         this.onChangeInput = this.onChangeInput.bind(this);
-        this.onApiFormChange = this.onApiFormChange.bind(this);
+        this.onApiFormChange = this.onApiFormChange.bind(this); // TODO: Remove this and turn API into an environment variable check
     }
 
     componentDidMount() {
@@ -92,7 +92,7 @@ export class FetchData extends Component {
 
         // TODO: Make the table captions better!
         return (
-            <table className="table table-striped" aria-labelledby="tabelLabel">
+            <table className="table" aria-labelledby="tabelLabel">
                 <caption>{tableTitle}</caption>
                 <thead>
                     <tr>
@@ -127,10 +127,10 @@ export class FetchData extends Component {
         return (
             <tbody>
                 {games.map(game =>
-                    <tr key={game.date}>
+                    <tr className={ this.getTableRowStyle(game)} key={game.date}>
                         <td>{game.date}</td>
                         <td>{game.result}</td>
-                        <td>{game.champion}</td>
+                        <td>{this.renderChampionDisplay(game)}</td>
                         <td>{game.gameLength}</td>
                         <td>{game.queueType}</td>
                     </tr>
@@ -139,6 +139,19 @@ export class FetchData extends Component {
         )
     }
 
+    renderChampionDisplay(game) {
+        return (
+            <div className="image-small">
+                <img src={game.championImage} title={game.championName} alt=""></img>
+            </div>
+        );
+    }
+
+    getTableRowStyle(game) {
+         //TODO: Why doesn't this CSS class actually apply?????
+        return game.result === "Win" ?
+            ".win-row" : ".loss-row";
+    }
 
     getRegionSelect() {
         return (

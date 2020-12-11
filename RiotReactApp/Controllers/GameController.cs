@@ -23,6 +23,14 @@ namespace RiotReactApp.Controllers
 
         private SummonerDTO __summoner;
 
+        private Request __req;
+
+        private ChampionsJson __champsJson;
+
+        private int __currentChampId;
+
+        private string __version;
+
         #endregion fields
 
         #region constructors
@@ -50,24 +58,17 @@ namespace RiotReactApp.Controllers
 
             // Using https://developer.riotgames.com/apis
             /**
-             * (1) Get {encryptedAccountId} information using 
-             *      print(requests.get(
-                    "https://{region}.api.riotgames.com//lol/summoner/v4/summoners/by-name/{summonerName}", 
-                    headers={"Accept": "application/json","X-Riot-Token": config["api-key"]}
-                    ).json())
+             * (1) Get {encryptedAccountId} 
              */
-            Request searchReq = requests.First();
-            string uri = "https://" + searchReq.Region.ToLower() + ".api.riotgames.com//lol/summoner/v4/summoners/by-name/" + searchReq.SummonerName;
-            __summoner = DeserializeObject<SummonerDTO>(await GetAsync(uri, searchReq.ApiKey, new List<Filter>())); // TODO: Status code error handling (try/catch?)                                                                                                          // TODO: Coding style, some thing should be stored as properties
+            __req = requests.First();
+            // TODO: Status code error handling (try/catch?)
+            // TODO: Coding style, some thing should be stored as properties
+            __summoner = DeserializeObject<SummonerDTO>(await GetAsyncFromRiotApi(".api.riotgames.com/lol/summoner/v4/summoners/by-name/" + __req.SummonerName, new List<Filter>()));                                                                                                         // TODO: Coding style, some thing should be stored as properties
 
             /**
-             * (2) Use that information to print out match-lists using this API:
-             *      print(requests.get(
-                    "https://{region}.api.riotgames.com/lol/match/v4/matchlists/by-account/{encryptedAccountId}", 
-                    headers={"Accept": "application/json","X-Riot-Token": config["api-key"]}
-                    ).json())
+             * (2) Use that information to get the match-lists
+             *      
              */
-            uri = "https://" + searchReq.Region.ToLower() + ".api.riotgames.com/lol/match/v4/matchlists/by-account/" + __summoner.AccountId;
             List<Filter> filters = new List<Filter>
             {
                 new Filter
@@ -77,9 +78,26 @@ namespace RiotReactApp.Controllers
                 }
             };
 
-            MatchlistDto matches = DeserializeObject<MatchlistDto>(await GetAsync(uri, searchReq.ApiKey, filters));
-            List<Game> gamesToReturn = new List<Game>();
+            MatchlistDto matches = DeserializeObject<MatchlistDto>(await GetAsyncFromRiotApi(".api.riotgames.com/lol/match/v4/matchlists/by-account/" + __summoner.AccountId, 
+                new List<Filter>
+                {
+                    new Filter
+                    {
+                        PropertyName = "endIndex",
+                        Value = "10"
+                    }
+                }
+            ));
 
+            // Get Queue.json data
+            string test = await GetAsync("https://ddragon.leagueoflegends.com/api/versions.json");
+            List<string> versions = DeserializeListObject<string>(test);
+            __version = versions.First();
+
+            // Get Champs data
+            __champsJson = DeserializeObject<ChampionsJson>(await GetAsync("http://ddragon.leagueoflegends.com/cdn/" + __version +"/data/en_US/champion.json"));
+
+            List<Game> gamesToReturn = new List<Game>();
             foreach (MatchReferenceDto matchRef in matches.Matches)
             {
                 /**
@@ -88,22 +106,29 @@ namespace RiotReactApp.Controllers
              *       get ParticipantStatsDto -> get win boolean value  
              *  2) Queue type = Queue from MatchRferenceDto -> (TODO: map to the queue json)
              *  3) Date - get timestamp long from MatchReferenceDto.cs and compare it to epoch in order to get date
-             *  4) Champion - for now just return return champion int from MatchReferenceDto (TODO: Also return the image eventually)
-             *  5) GameLength - natchId -> MatchDto get request -> gameDuration
+             *  4) ChampionName - for now just return return champion int from MatchReferenceDto (TODO: Also return the image eventually)
+             *  5) ChampionImage - The href link
+             *  6) GameLength - natchId -> MatchDto get request -> gameDuration
              */
                 Game currGame = new Game();
-                uri = "https://" + searchReq.Region.ToLower() + ".api.riotgames.com/lol/match/v4/matches/" + matchRef.GameId;
-                MatchDto match = DeserializeObject<MatchDto>(await GetAsync(uri, searchReq.ApiKey, new List<Filter>()));
+                MatchDto match = DeserializeObject<MatchDto>(await GetAsyncFromRiotApi(".api.riotgames.com/lol/match/v4/matches/" + matchRef.GameId, new List<Filter>()));
                 ParticipantIdentityDto participantId = match.ParticipantIdentities.Find(IsSummonerMatch);
                 ParticipantDto participant = match.Participants[participantId.ParticipantId - 1];
                 
-                currGame.Result = participant.Stats.Win ? "Win" : "Loss"; // (1)
+                currGame.Result = participant.Stats.Win ? "Win" : "Loss"; // (1) Result
+
+                // TODO: Maybe actually map to http://http://static.developer.riotgames.com/docs/lol/queues.json
+                currGame.QueueType = GetQueueStringMapping(matchRef.Queue); // (2) QueueType
                 
-                currGame.QueueType = matchRef.Queue.ToString(); // (2) // TODO: Actually map this value
                 long timeStamp = matchRef.Timestamp;
-                currGame.Date = new DateTime(1970, 1, 1, 0, 0, 0, 0).AddMilliseconds(timeStamp - 86400000).ToShortDateString(); // subtract a day since we start at day 1
-                currGame.Champion = matchRef.Champion.ToString();
-                currGame.GameLength = (int)(match.GameDuration / 60);
+                currGame.Date = new DateTime(1970, 1, 1, 0, 0, 0, 0).AddMilliseconds(timeStamp - 86400000).ToShortDateString(); // (3) Date
+
+                __currentChampId = matchRef.Champion;
+                Tuple<string, string> champTuple = GetChampMappings();
+                currGame.ChampionName = champTuple.Item1; // (4) ChampionName
+                currGame.ChampionImage = champTuple.Item2; // (5) ChampionImage
+
+                currGame.GameLength = (int)(match.GameDuration / 60); // (7) GameLength
 
                 gamesToReturn.Add(currGame); // Woohoo
             }
@@ -165,6 +190,8 @@ namespace RiotReactApp.Controllers
                     prevIndex = index + 1;
                 }
 
+
+                // TODO: There's likely an edge case of none remaining that's occasionally causing a runtime error
                 var remainingString = Encoding.UTF8.GetString(buffer, prevIndex, bytesRemaining - prevIndex);
                 builder.Append(remainingString);
             }
@@ -183,14 +210,24 @@ namespace RiotReactApp.Controllers
             return JsonSerializer.Deserialize<T>(objString, options);
         }
 
-        /// <summary>
-        /// Uses web request to perform an HTTP to a certain URI, optionally applying filters
-        /// </summary>
-        /// <param name="uri">The uri to query</param>
-        /// <param name="apiKey">The Riot API key to use</param>
-        /// <returns></returns>
-        public async Task<string> GetAsync(string uri, string apiKey, List<Filter> filters)
+        private List<T> DeserializeListObject<T>(string objString)
         {
+            JsonSerializerOptions options = new JsonSerializerOptions()
+            {
+                PropertyNameCaseInsensitive = true
+            };
+            return JsonSerializer.Deserialize<List<T>>(objString, options);
+        }
+
+        /// <summary>
+        /// Uses web request to perform an HTTP to a Riot URI, optionally applying filters
+        /// </summary>
+        /// <param name="uri">The uri to query (jsut the middle of it)</param>
+        /// <param name="filters">The filters to use</param>
+        /// <returns>string of JSON data</returns>
+        private async Task<string> GetAsyncFromRiotApi(string uriQuery, List<Filter> filters)
+        {
+            string uri = "https://" + __req.Region.ToLower() + uriQuery;
             if (filters.Count > 0) //TODO: improve coding syntax (...list maybe?)
             {
                 uri += "?";
@@ -206,7 +243,7 @@ namespace RiotReactApp.Controllers
             request.Headers = new WebHeaderCollection
             {
                 "Accept: application/json",
-                "X-Riot-Token: " + apiKey
+                "X-Riot-Token: " + __req.ApiKey
             };
 
             using (HttpWebResponse response = (HttpWebResponse)await request.GetResponseAsync())
@@ -217,9 +254,111 @@ namespace RiotReactApp.Controllers
             }
         }
 
+        /// <summary>
+        /// Uses web request to perform an HTTP to a certain URI
+        /// </summary>
+        /// <param name="uri">The uri to query (jsut the middle of it)</param>
+        /// <returns>String of JSON data</returns>
+        private async Task<string> GetAsync(string uri)
+        {
+            HttpWebRequest request = (HttpWebRequest)WebRequest.Create(uri);
+            request.AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate;
+            request.Headers = new WebHeaderCollection
+            {
+                "Accept: application/json",
+            };
+
+            using (HttpWebResponse response = (HttpWebResponse)await request.GetResponseAsync())
+            using (Stream stream = response.GetResponseStream())
+            using (StreamReader reader = new StreamReader(stream))
+            {
+                return await reader.ReadToEndAsync();
+            }
+        }
+
+        /// <summary>
+        /// Match delegate between ParticipantDto and ParticipantIdentityDto
+        /// </summary>
+        /// <param name="p"></param>
+        /// <returns></returns>
         private bool IsSummonerMatch(ParticipantIdentityDto p)
         {
             return p.Player.AccountId == __summoner.AccountId;
+        }
+
+        private string GetQueueStringMapping(int queueId)
+        {
+            string returnStr;
+            if (queueId == 0)
+            {
+                returnStr = "Custom";
+            }
+            else if (queueId == 400)
+            {
+                returnStr = "5v5 Draft Pick";
+            }
+            else if (queueId == 420)
+            {
+                returnStr = "Ranked Solo";
+            }
+            else if (queueId == 430)
+            {
+                returnStr = "5v5 Blind Pick";
+            }
+            else if (queueId == 440)
+            {
+                returnStr = "Ranked Flex";
+            }
+            else if (queueId == 450)
+            {
+                returnStr = "ARAM";
+            }
+            else if (queueId == 700)
+            {
+                returnStr = "Clash";
+            }
+            else if (queueId >= 820 && queueId <= 850)
+            {
+                returnStr = "Bot Game";
+            }
+            else if (queueId >= 1100 && queueId <= 1111)
+            {
+                returnStr = "TFT";
+            }
+            else
+            {
+                returnStr = "Special Mode";
+            }
+
+            return returnStr;
+        }
+
+        /// <summary>
+        /// Get's champ name and image mappings
+        /// </summary>
+        /// <param name="champId">The champs Id</param>
+        /// <returns>A tuple of the name and image mappings</returns>
+        private Tuple<string, string> GetChampMappings()
+        {
+            string champName;
+            string champImage;
+
+            Champion champ = __champsJson.Data.Values.ToList().Find(IsChampionMatch);
+            champName = champ.Id;
+            champImage = "http://ddragon.leagueoflegends.com/cdn/" + __version + "/img/champion/" + champ.Image.Full;
+
+            return new Tuple<string, string>(champName, champImage);
+        }
+
+        /// <summary>
+        /// Match delegate for finding the right champ
+        /// </summary>
+        /// <param name="champ"></param>
+        /// <returns></returns>
+        private bool IsChampionMatch(Champion champ)
+        {
+            if (Int32.Parse(champ.Key) == __currentChampId) { return true; }
+            else { return false;  }
         }
 
         #endregion private methods

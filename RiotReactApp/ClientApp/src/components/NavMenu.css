@@ -27,3 +27,28 @@ html {
     display: inline;
 }
 
+.image-small img {
+    width: 25%;
+    display: block;
+    vertical-align: bottom;
+    padding-top: 0.1em;
+}
+
+.image-small p {
+    padding: 0em;
+    margin-bottom: 0em;
+}
+
+.win-row {
+    background-color: lightblue !important;
+}
+
+.loss-row {
+    background-color: lightpink !important;
+}
+
+.table td {
+    padding: 0em;
+    padding-left: 1em;
+}
+
