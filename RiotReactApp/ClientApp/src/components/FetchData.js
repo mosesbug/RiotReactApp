@@ -148,9 +148,8 @@ export class FetchData extends Component {
     }
 
     getTableRowStyle(game) {
-         //TODO: Why doesn't this CSS class actually apply?????
         return game.result === "Win" ?
-            ".win-row" : ".loss-row";
+            "win-row" : "loss-row";
     }
 
     getRegionSelect() {
