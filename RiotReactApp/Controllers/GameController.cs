@@ -27,6 +27,8 @@ namespace RiotReactApp.Controllers
 
         private ChampionsJson __champsJson;
 
+        private MatchlistDto __matches;
+
         private int __currentChampId;
 
         private string __version;
@@ -45,11 +47,17 @@ namespace RiotReactApp.Controllers
         #region public methods
 
         [HttpPost]
-        public async Task<IEnumerable<Game>> Post()
+        public async Task<GameResponse> Post()
         {
             List<string> bodyComponents = await GetListOfStringsFromBody(Request.Body);
             List<Request> requests = new List<Request>();
             List<Game> gamesToReturn = new List<Game>();
+            GameResponse gameResponse = new GameResponse
+            {
+                StatusCode = HttpStatusCode.OK,
+                ErrorMessage = "",
+                Games = gamesToReturn
+            };
 
             foreach (string str in bodyComponents)
             {
@@ -71,21 +79,23 @@ namespace RiotReactApp.Controllers
                 });
 
 
-                return gamesToReturn;
+                return gameResponse;
             }
 
             // Using https://developer.riotgames.com/apis
             /**
              * (1) Get {encryptedAccountId} 
              */
-            // TODO: Status code error handling (try/catch?)
-            // TODO: Validation - return status and header text if we fail
-            // (1) Unknown summoner name (404?)
-            // (2) Unkown API key (403?)
-            // (3) 5xx codes
-            // TODO: Coding style, some thing should be stored as properties
-            __summoner = DeserializeObject<SummonerDTO>(await GetAsyncFromRiotApi(".api.riotgames.com/lol/summoner/v4/summoners/by-name/" + __req.SummonerName, new List<Filter>()));                                                                                                         // TODO: Coding style, some thing should be stored as properties
-
+            try
+            {
+                __summoner = DeserializeObject<SummonerDTO>(await GetAsyncFromRiotApi
+                (".api.riotgames.com/lol/summoner/v4/summoners/by-name/" + __req.SummonerName, new List<Filter>()));
+            }
+            catch (WebException e)
+            {
+                return HandleBadRequest(e, GetRequest.Summoner);
+            }                                                                                                   
+            
             /**
              * (2) Use that information to get the match-lists
              *      
@@ -99,28 +109,46 @@ namespace RiotReactApp.Controllers
                 }
             };
 
-            //TODO: Validation - return status and header text if we fail
-            MatchlistDto matches = DeserializeObject<MatchlistDto>(await GetAsyncFromRiotApi(".api.riotgames.com/lol/match/v4/matchlists/by-account/" + __summoner.AccountId, 
-                new List<Filter>
-                {
-                    new Filter
+            try
+            {
+                // TODO: Implement a lookback selection feature to save on performance (i.e. only look back x months)
+                __matches = DeserializeObject<MatchlistDto>(await GetAsyncFromRiotApi(".api.riotgames.com/lol/match/v4/matchlists/by-account/" + __summoner.AccountId,
+                    new List<Filter>
                     {
-                        PropertyName = "endIndex",
-                        Value = "10"
+                        new Filter
+                        {
+                            PropertyName = "endIndex",
+                            Value = "10"
+                        }
                     }
-                }
-            ));
+                ));
+            }
+            catch (WebException e)
+            {
+                return HandleBadRequest(e, GetRequest.Matches);
+            }
 
             // Get Queue.json data - TODO: Maybe only need to do this one time
-            //TODO: Validation - return status and header text if we fail
-            List<string> versions = DeserializeListObject<string>(await GetAsync("https://ddragon.leagueoflegends.com/api/versions.json"));
-            __version = versions.First();
+            try
+            {
+                __version = DeserializeObject<List<string>>(await GetAsync("https://ddragon.leagueoflegends.com/api/versions.json")).First();
+            }
+            catch (WebException e)
+            {
+                return HandleBadRequest(e, GetRequest.Versions);
+            }
 
             // Get Champs data - TODO: Maybe only need to do this one time
-            //TODO: Validation - return status and header text if we fail
-            __champsJson = DeserializeObject<ChampionsJson>(await GetAsync("http://ddragon.leagueoflegends.com/cdn/" + __version +"/data/en_US/champion.json"));
+            try
+            {
+                __champsJson = DeserializeObject<ChampionsJson>(await GetAsync("http://ddragon.leagueoflegends.com/cdn/" + __version + "/data/en_US/champion.json"));
+            }
+            catch (WebException e)
+            {
+                return HandleBadRequest(e, GetRequest.Champions);
+            }
 
-            foreach (MatchReferenceDto matchRef in matches.Matches)
+            foreach (MatchReferenceDto matchRef in __matches.Matches)
             {
                 /**
              * Player stats:
@@ -135,10 +163,24 @@ namespace RiotReactApp.Controllers
              *  TODO: 
              *  1) KDA
              *  2) Items built (w/ icons)
+             *  
+             *  TODO - Player card:
+             *  1) Overall KDA
+             *  2) Games played
+             *  3) Win rate
+             *  4) Favorite champ
+             *  5) Custom report card rating
              */
                 Game currGame = new Game();
-                //TODO: Validation - return status and header text if we fail
-                MatchDto match = DeserializeObject<MatchDto>(await GetAsyncFromRiotApi(".api.riotgames.com/lol/match/v4/matches/" + matchRef.GameId, new List<Filter>()));
+                MatchDto match = new MatchDto();
+                try
+                {
+                    match = DeserializeObject<MatchDto>(await GetAsyncFromRiotApi(".api.riotgames.com/lol/match/v4/matches/" + matchRef.GameId, new List<Filter>()));
+                }
+                catch (WebException e)
+                {
+                    return HandleBadRequest(e, GetRequest.Match);
+                }
                 ParticipantIdentityDto participantId = match.ParticipantIdentities.Find(IsSummonerMatch);
                 ParticipantDto participant = match.Participants[participantId.ParticipantId - 1];
                 
@@ -160,7 +202,7 @@ namespace RiotReactApp.Controllers
                 gamesToReturn.Add(currGame); // Woohoo
             }
 
-            return gamesToReturn;
+            return gameResponse;
         }
 
         #endregion public methods
@@ -388,6 +430,53 @@ namespace RiotReactApp.Controllers
             else { return false;  }
         }
 
+        private GameResponse HandleBadRequest(WebException e, GetRequest reqType)
+        {
+
+            HttpWebResponse resp = e.Response as HttpWebResponse;
+            GameResponse gameResp = new GameResponse
+            {
+                StatusCode = resp.StatusCode,
+                ErrorMessage = e.Message,
+                Games = new List<Game>()
+            };
+
+            if (gameResp.StatusCode == HttpStatusCode.Forbidden || gameResp.StatusCode == HttpStatusCode.Unauthorized)
+            {
+                gameResp.ErrorMessage = "Incorrect or expired API key";
+            }
+            else if (gameResp.StatusCode == HttpStatusCode.NotFound)
+            {
+                if (reqType == GetRequest.Summoner)
+                {
+                    gameResp.ErrorMessage = "Summoner not found";
+                }
+                else if (reqType == GetRequest.Matches)
+                {
+                    gameResp.ErrorMessage = "No matches found for summoner";
+                }
+                else
+                {
+                    gameResp.ErrorMessage = "Unknown error";
+                }
+            }
+            else // 5xx errors
+            {
+                gameResp.ErrorMessage = "Internal server error; please try again in a few seconds";
+            }
+
+            return gameResp;
+        }
+
         #endregion private methods
+    }
+
+    public enum GetRequest
+    {
+        Summoner,
+        Matches,
+        Versions,
+        Champions,
+        Match
     }
 }

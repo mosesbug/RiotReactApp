@@ -184,19 +184,19 @@ export class GameHistory extends Component {
             // 5) Favorite champ
         const data = await response.json();
 
-        if (data[0].errorStatusCode) {
+        if (data.statusCode !== 200) {
 
-            this.handleBadRequest(data[0]);
+            this.handleBadRequest(data);
             this.setState({ games: [], tableLoading: false });
         }
         else {
-            this.setState({ games: data, tableLoading: false });
+            this.setState({ games: data.games, tableLoading: false });
         }
     }
 
     // TODO: Turn into a nice popup or toast?
     handleBadRequest(gameResponse) {
-        alert("Status code: " + gameResponse.errorStatusCode + "\nMessage: " + gameResponse.errorMessage);
+        alert("Status code: " + gameResponse.statusCode + "\nMessage: " + gameResponse.errorMessage);
     }
 
     populatePage() {
