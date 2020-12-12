@@ -53,3 +53,29 @@ html {
     padding-left: 1em;
 }
 
+.text-blue {
+    color: cornflowerblue;
+}
+
+.spaced-text {
+    margin-top: 2em;
+}
+
+.text-big-fun-font {
+    font-family: sans-serif;
+    font-style: oblique;
+}
+
+.text-blue Link {
+    text-underline-position: below;
+}
+
+.bugmo-brand {
+    font-family: 'Comic Sans MS';
+    color: cornflowerblue !important;
+    padding: 0.1rem !important;
+    font-size: xx-large;
+    font-style: oblique;
+    font-weight: bold;
+}
+

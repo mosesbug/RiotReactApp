@@ -1,8 +1,8 @@
 import React, { Component } from "react";
 import './NavMenu.css';
 
-export class FetchData extends Component {
-  static displayName = FetchData.name;
+export class GameHistory extends Component {
+    static displayName = GameHistory.name;
 
     /** Private fields */
     __initialRegion = "NA1";
@@ -12,20 +12,18 @@ export class FetchData extends Component {
         super(props);
         this.state = {
             games: [], loading: true, tableLoading: false,
-            summonerName: "", region: "", apiKey: ""
+            summonerName: "", region: ""
         };
 
         this.onSelectRegion = this.onSelectRegion.bind(this);
         this.onEntryFormSubmit = this.onEntryFormSubmit.bind(this);
         this.onChangeInput = this.onChangeInput.bind(this);
-        this.onApiFormChange = this.onApiFormChange.bind(this); // TODO: Remove this and turn API into an environment variable check
     }
 
     componentDidMount() {
         this.populatePage();
     }
 
-    // TODO: add a separate form for entering your Riot API key (maybe a password field so it"s hidden)
     renderPage(games) {
         return (
             <div>
@@ -39,8 +37,10 @@ export class FetchData extends Component {
         return (
             <div className="submit-forms">
                 <form onSubmit={this.onEntryFormSubmit}>
-                    <p><input type="text" placeholder="Summoner Name" value={this.state.summonerName} onChange={ this.onChangeInput } name="SummonerName" /> { this.getRegionSelect() }</p>
-                    <p><input type="text" placeholder="Enter Riot API key" value={this.state.apiKey} onChange={this.onApiFormChange} /></p>
+                    <p>
+                        <input type="text" placeholder="Summoner Name" value={this.state.summonerName} onChange={this.onChangeInput} name="SummonerName" minLength="3" maxLength="16" />
+                        {this.getRegionSelect()}
+                    </p>
                     <p><button>Get Match History</button></p>
                 </form>
             </div>
@@ -59,18 +59,10 @@ export class FetchData extends Component {
     }
 
     onEntryFormSubmit(event) {
-        //TODO: Validate our input summoner name and API key to the best of my ability
-        //TODO2: Move validation to the web server
-
         // TODO: Make a debug mode
-        // alert("Summoner name: " + this.getSummonerName() + "\nRegion: " + this.getRegion() + "\nAPI Key: " + this.getApiKey()); // MHB TURN OFF FOR NOW
+        // alert("Summoner name: " + this.getSummonerName() + "\nRegion: " + this.getRegion()); // MHB TURN OFF FOR NOW
         this.__submittedName = this.getSummonerName();
         this.populateData();
-        event.preventDefault();
-    }
-
-    onApiFormChange(event) {
-        this.setState({ apiKey: event.target.value });
         event.preventDefault();
     }
 
@@ -80,10 +72,6 @@ export class FetchData extends Component {
 
     getRegion() {
         return this.state.region.length > 0 ? this.state.region : this.__initialRegion;
-    }
-
-    getApiKey() {
-        return this.state.apiKey;
     }
 
     renderGamesTable(games) {
@@ -183,8 +171,7 @@ export class FetchData extends Component {
             method: 'post',
             body: JSON.stringify({
                 SummonerName: this.getSummonerName(),
-                Region: this.getRegion(),
-                ApiKey: this.getApiKey()
+                Region: this.getRegion()
             })
         });
         const data = await response.json();

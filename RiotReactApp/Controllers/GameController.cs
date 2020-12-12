@@ -56,15 +56,26 @@ namespace RiotReactApp.Controllers
                 requests.Add(DeserializeObject<Request>(str));
             }
 
+            __req = requests.First();
+            __req.ApiKey = Environment.GetEnvironmentVariable("X-Riot-Token",EnvironmentVariableTarget.Machine); // Windows only
+          
+
+            if (__req.ApiKey == null)
+            {
+                // Handle non-existent API-Key
+                //TODO: Validation - return status and header text if we fail
+
+            }
+
             // Using https://developer.riotgames.com/apis
             /**
              * (1) Get {encryptedAccountId} 
              */
-            __req = requests.First();
-            
             // TODO: Status code error handling (try/catch?)
-                // 1) Summoner not found
-                // 2) 5xx errors
+            // TODO: Validation - return status and header text if we fail
+            // (1) Unknown summoner name (404?)
+            // (2) Unkown API key (403?)
+            // (3) 5xx codes
             // TODO: Coding style, some thing should be stored as properties
             __summoner = DeserializeObject<SummonerDTO>(await GetAsyncFromRiotApi(".api.riotgames.com/lol/summoner/v4/summoners/by-name/" + __req.SummonerName, new List<Filter>()));                                                                                                         // TODO: Coding style, some thing should be stored as properties
 
@@ -81,6 +92,7 @@ namespace RiotReactApp.Controllers
                 }
             };
 
+            //TODO: Validation - return status and header text if we fail
             MatchlistDto matches = DeserializeObject<MatchlistDto>(await GetAsyncFromRiotApi(".api.riotgames.com/lol/match/v4/matchlists/by-account/" + __summoner.AccountId, 
                 new List<Filter>
                 {
@@ -92,12 +104,13 @@ namespace RiotReactApp.Controllers
                 }
             ));
 
-            // Get Queue.json data
-            string test = await GetAsync("https://ddragon.leagueoflegends.com/api/versions.json");
-            List<string> versions = DeserializeListObject<string>(test);
+            // Get Queue.json data - TODO: Maybe only need to do this one time
+            //TODO: Validation - return status and header text if we fail
+            List<string> versions = DeserializeListObject<string>(await GetAsync("https://ddragon.leagueoflegends.com/api/versions.json"));
             __version = versions.First();
 
-            // Get Champs data
+            // Get Champs data - TODO: Maybe only need to do this one time
+            //TODO: Validation - return status and header text if we fail
             __champsJson = DeserializeObject<ChampionsJson>(await GetAsync("http://ddragon.leagueoflegends.com/cdn/" + __version +"/data/en_US/champion.json"));
 
             List<Game> gamesToReturn = new List<Game>();
@@ -112,8 +125,13 @@ namespace RiotReactApp.Controllers
              *  4) ChampionName - for now just return return champion int from MatchReferenceDto (TODO: Also return the image eventually)
              *  5) ChampionImage - The href link
              *  6) GameLength - natchId -> MatchDto get request -> gameDuration
+             *  
+             *  TODO: 
+             *  1) KDA
+             *  2) Items built (w/ icons)
              */
                 Game currGame = new Game();
+                //TODO: Validation - return status and header text if we fail
                 MatchDto match = DeserializeObject<MatchDto>(await GetAsyncFromRiotApi(".api.riotgames.com/lol/match/v4/matches/" + matchRef.GameId, new List<Filter>()));
                 ParticipantIdentityDto participantId = match.ParticipantIdentities.Find(IsSummonerMatch);
                 ParticipantDto participant = match.Participants[participantId.ParticipantId - 1];
