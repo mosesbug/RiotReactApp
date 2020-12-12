@@ -45,11 +45,11 @@ namespace RiotReactApp.Controllers
         #region public methods
 
         [HttpPost]
-        public async Task<IEnumerable<GameResponse>> Post()
+        public async Task<IEnumerable<Game>> Post()
         {
             List<string> bodyComponents = await GetListOfStringsFromBody(Request.Body);
             List<Request> requests = new List<Request>();
-            List<GameResponse> gamesToReturn = new List<GameResponse>();
+            List<Game> gamesToReturn = new List<Game>();
 
             foreach (string str in bodyComponents)
             {
@@ -64,7 +64,7 @@ namespace RiotReactApp.Controllers
             if (__req.ApiKey == null)
             {
                 // Handle non-existent API-Key
-                gamesToReturn.Add(new GameResponse
+                gamesToReturn.Add(new Game
                 {
                     ErrorStatusCode = 403,
                     ErrorMessage = "No API key provided"

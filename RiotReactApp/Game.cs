@@ -2,7 +2,7 @@
 
 namespace RiotReactApp
 {
-    public class Game : GameResponse
+    public class Game
     {
         public string Date { get; set; }
 
@@ -15,5 +15,11 @@ namespace RiotReactApp
         public int GameLength { get; set; }
 
         public string QueueType { get; set; }
+
+        //TODO: maybe update these error props as interfaced props so its cleaner
+
+        public int ErrorStatusCode { get; set; }  // Only set for failed requests
+
+        public string ErrorMessage { get; set; } // Only set for failed requests
     }
 }
