@@ -174,8 +174,29 @@ export class GameHistory extends Component {
                 Region: this.getRegion()
             })
         });
+
+        // TODO: Add a summoner info card on the left side of the table?
+        // Some cool info to include:
+            // 1) Profile icon
+            // 2) Summoner level
+            // 3) Name
+            // 4) Average KDA
+            // 5) Favorite champ
         const data = await response.json();
-        this.setState({ games: data, tableLoading: false });
+
+        if (data[0].errorStatusCode) {
+
+            this.handleBadRequest(data[0]);
+            this.setState({ games: [], tableLoading: false });
+        }
+        else {
+            this.setState({ games: data, tableLoading: false });
+        }
+    }
+
+    // TODO: Turn into a nice popup or toast?
+    handleBadRequest(gameResponse) {
+        alert("Status code: " + gameResponse.errorStatusCode + "\nMessage: " + gameResponse.errorMessage);
     }
 
     populatePage() {

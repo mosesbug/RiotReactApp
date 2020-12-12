@@ -45,10 +45,11 @@ namespace RiotReactApp.Controllers
         #region public methods
 
         [HttpPost]
-        public async Task<IEnumerable<Game>> Post()
+        public async Task<IEnumerable<GameResponse>> Post()
         {
             List<string> bodyComponents = await GetListOfStringsFromBody(Request.Body);
             List<Request> requests = new List<Request>();
+            List<GameResponse> gamesToReturn = new List<GameResponse>();
 
             foreach (string str in bodyComponents)
             {
@@ -63,8 +64,14 @@ namespace RiotReactApp.Controllers
             if (__req.ApiKey == null)
             {
                 // Handle non-existent API-Key
-                //TODO: Validation - return status and header text if we fail
+                gamesToReturn.Add(new GameResponse
+                {
+                    ErrorStatusCode = 403,
+                    ErrorMessage = "No API key provided"
+                });
 
+
+                return gamesToReturn;
             }
 
             // Using https://developer.riotgames.com/apis
@@ -113,7 +120,6 @@ namespace RiotReactApp.Controllers
             //TODO: Validation - return status and header text if we fail
             __champsJson = DeserializeObject<ChampionsJson>(await GetAsync("http://ddragon.leagueoflegends.com/cdn/" + __version +"/data/en_US/champion.json"));
 
-            List<Game> gamesToReturn = new List<Game>();
             foreach (MatchReferenceDto matchRef in matches.Matches)
             {
                 /**

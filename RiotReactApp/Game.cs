@@ -2,7 +2,7 @@
 
 namespace RiotReactApp
 {
-    public class Game
+    public class Game : GameResponse
     {
         public string Date { get; set; }
 
