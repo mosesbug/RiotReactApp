@@ -4,8 +4,18 @@
   word-break: break-all;
 }
 
+.navbar-color {
+    background-color: #002bff40;
+    -webkit-mask-image: linear-gradient(to bottom, black 93%, transparent);
+}
+
+.base-background {
+    background-color: #00ffff0d;
+}
+
 html {
-  font-size: 14px;
+    font-size: 14px;
+    background-color: #00ffff0d;
 }
 @media (min-width: 768px) {
   html {
@@ -74,8 +84,24 @@ html {
     font-family: 'Comic Sans MS';
     color: cornflowerblue !important;
     padding: 0.1rem !important;
-    font-size: xx-large;
+    font-size: 40px;
     font-style: oblique;
     font-weight: bold;
 }
+
+.center-home {
+    margin: auto;
+}
+
+.center-home img {
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.home-image {
+    padding-top: 2em;
+}
+
+
 

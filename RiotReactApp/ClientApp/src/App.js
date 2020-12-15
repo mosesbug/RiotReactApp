@@ -1,7 +1,7 @@
 import React, { Component } from 'react';
 import { Route } from 'react-router';
 import { Layout } from './components/Layout';
-import { Home } from './components/Home';
+import { Help } from './components/Help';
 import { GameHistory } from './components/GameHistory';
 
 import './custom.css'
@@ -12,8 +12,8 @@ export default class App extends Component {
   render () {
     return (
       <Layout>
-        <Route exact path='/' component={Home} />
-        <Route path='/game-history' component={GameHistory} />
+        <Route exact path='/' component={GameHistory} />
+        <Route path='/help' component={Help} />
       </Layout>
     );
   }

@@ -7,9 +7,9 @@ using System.Net;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using RiotReactApp.HttpHelpers;
 
 namespace RiotReactApp.Controllers
 {
@@ -49,7 +49,7 @@ namespace RiotReactApp.Controllers
         [HttpPost]
         public async Task<GameResponse> Post()
         {
-            List<string> bodyComponents = await GetListOfStringsFromBody(Request.Body);
+            List<string> bodyComponents = await GetHelper.GetListOfStringsFromBody(Request.Body);
             List<Request> requests = new List<Request>();
             List<Game> gamesToReturn = new List<Game>();
             GameResponse gameResponse = new GameResponse
@@ -62,57 +62,41 @@ namespace RiotReactApp.Controllers
             foreach (string str in bodyComponents)
             {
                 Console.WriteLine(str);
-                requests.Add(DeserializeObject<Request>(str));
+                requests.Add(GetHelper.DeserializeObject<Request>(str));
             }
 
             __req = requests.First();
-            __req.ApiKey = Environment.GetEnvironmentVariable("X-Riot-Token",EnvironmentVariableTarget.Machine); // Windows only
+            __req.ApiKey = Environment.GetEnvironmentVariable("X-Riot-Token", EnvironmentVariableTarget.Machine); // Windows only (TODO: instructions for other OS?)
           
 
             if (__req.ApiKey == null)
             {
                 // Handle non-existent API-Key
-                gamesToReturn.Add(new Game
-                {
-                    ErrorStatusCode = 403,
-                    ErrorMessage = "No API key provided"
-                });
-
+                gameResponse.StatusCode = HttpStatusCode.NotFound;
+                gameResponse.ErrorMessage = "No API key provided";
 
                 return gameResponse;
             }
+
+            GetHelper getHelper = new GetHelper(__req.Region.ToLower(), __req.ApiKey);
 
             // Using https://developer.riotgames.com/apis
             /**
              * (1) Get {encryptedAccountId} 
              */
-            try
+            //TODO: Move these gets into a helper class and have them return an HttpGetRespone
+            HttpGetResponse summonerGet = await getHelper.GetAsyncFromRiotApi<SummonerDTO>(".api.riotgames.com/lol/summoner/v4/summoners/by-name/" + __req.SummonerName);
+            if (summonerGet.Ex != null)
             {
-                __summoner = DeserializeObject<SummonerDTO>(await GetAsyncFromRiotApi
-                (".api.riotgames.com/lol/summoner/v4/summoners/by-name/" + __req.SummonerName, new List<Filter>()));
+                return GetHelper.HandleBadRequest(summonerGet.Ex, GetRequest.Summoner);
             }
-            catch (WebException e)
-            {
-                return HandleBadRequest(e, GetRequest.Summoner);
-            }                                                                                                   
+            __summoner = summonerGet.Value as SummonerDTO;
             
             /**
              * (2) Use that information to get the match-lists
              *      
              */
-            List<Filter> filters = new List<Filter>
-            {
-                new Filter
-                {
-                    PropertyName = "endIndex",
-                    Value = "10"
-                }
-            };
-
-            try
-            {
-                // TODO: Implement a lookback selection feature to save on performance (i.e. only look back x months)
-                __matches = DeserializeObject<MatchlistDto>(await GetAsyncFromRiotApi(".api.riotgames.com/lol/match/v4/matchlists/by-account/" + __summoner.AccountId,
+            HttpGetResponse matchesGet = await getHelper.GetAsyncFromRiotApi<MatchlistDto>(".api.riotgames.com/lol/match/v4/matchlists/by-account/" + __summoner.AccountId,
                     new List<Filter>
                     {
                         new Filter
@@ -121,32 +105,28 @@ namespace RiotReactApp.Controllers
                             Value = "10"
                         }
                     }
-                ));
-            }
-            catch (WebException e)
+            );
+            if (matchesGet.Ex != null)
             {
-                return HandleBadRequest(e, GetRequest.Matches);
+                return GetHelper.HandleBadRequest(matchesGet.Ex, GetRequest.Matches);
             }
+            __matches = matchesGet.Value as MatchlistDto;
 
             // Get Queue.json data - TODO: Maybe only need to do this one time
-            try
+            HttpGetResponse versionsGet = await getHelper.GetAsync<List<string>>("https://ddragon.leagueoflegends.com/api/versions.json");
+            if (versionsGet.Ex != null)
             {
-                __version = DeserializeObject<List<string>>(await GetAsync("https://ddragon.leagueoflegends.com/api/versions.json")).First();
+                return GetHelper.HandleBadRequest(versionsGet.Ex, GetRequest.Versions);
             }
-            catch (WebException e)
-            {
-                return HandleBadRequest(e, GetRequest.Versions);
-            }
+            __version = (versionsGet.Value as List<string>).First();
 
             // Get Champs data - TODO: Maybe only need to do this one time
-            try
+            HttpGetResponse championsGet = await getHelper.GetAsync<ChampionsJson>("http://ddragon.leagueoflegends.com/cdn/" + __version + "/data/en_US/champion.json");
+            if (championsGet.Ex != null)
             {
-                __champsJson = DeserializeObject<ChampionsJson>(await GetAsync("http://ddragon.leagueoflegends.com/cdn/" + __version + "/data/en_US/champion.json"));
+                return GetHelper.HandleBadRequest(championsGet.Ex, GetRequest.Champions);
             }
-            catch (WebException e)
-            {
-                return HandleBadRequest(e, GetRequest.Champions);
-            }
+            __champsJson = (championsGet.Value as ChampionsJson);
 
             foreach (MatchReferenceDto matchRef in __matches.Matches)
             {
@@ -173,14 +153,13 @@ namespace RiotReactApp.Controllers
              */
                 Game currGame = new Game();
                 MatchDto match = new MatchDto();
-                try
+                HttpGetResponse matchGet = await getHelper.GetAsyncFromRiotApi<MatchDto>(".api.riotgames.com/lol/match/v4/matches/" + matchRef.GameId);
+                if (matchGet.Ex != null)
                 {
-                    match = DeserializeObject<MatchDto>(await GetAsyncFromRiotApi(".api.riotgames.com/lol/match/v4/matches/" + matchRef.GameId, new List<Filter>()));
+                    return GetHelper.HandleBadRequest(matchGet.Ex, GetRequest.Match);
                 }
-                catch (WebException e)
-                {
-                    return HandleBadRequest(e, GetRequest.Match);
-                }
+                match = matchGet.Value as MatchDto;
+
                 ParticipantIdentityDto participantId = match.ParticipantIdentities.Find(IsSummonerMatch);
                 ParticipantDto participant = match.Participants[participantId.ParticipantId - 1];
                 
@@ -208,152 +187,6 @@ namespace RiotReactApp.Controllers
         #endregion public methods
 
         #region private methods
-
-        /// <summary>
-        /// Gets the body from an HTTP request
-        /// </summary>
-        /// <param name="requestBody">The Stream body from an HTTPRequest</param>
-        /// <returns></returns>
-        private async Task<List<string>> GetListOfStringsFromBody(Stream requestBody)
-        {
-            StringBuilder builder = new StringBuilder();
-            byte[] buffer = ArrayPool<byte>.Shared.Rent(4096);
-            List<string> results = new List<string>();
-
-            while (true)
-            {
-                var bytesRemaining = await requestBody.ReadAsync(buffer, offset: 0, buffer.Length);
-
-                if (bytesRemaining == 0)
-                {
-                    results.Add(builder.ToString());
-                    break;
-                }
-
-                // Instead of adding the entire buffer into the StringBuilder
-                // only add the remainder after the last \n in the array.
-                var prevIndex = 0;
-                int index;
-                while (true)
-                {
-                    index = Array.IndexOf(buffer, (byte)'\n', prevIndex);
-                    if (index == -1)
-                    {
-                        break;
-                    }
-
-                    var encodedString = Encoding.UTF8.GetString(buffer, prevIndex, index - prevIndex);
-
-                    if (builder.Length > 0)
-                    {
-                        // If there was a remainder in the string buffer, include it in the next string.
-                        results.Add(builder.Append(encodedString).ToString());
-                        builder.Clear();
-                    }
-                    else
-                    {
-                        results.Add(encodedString);
-                    }
-
-                    // Skip past last \n
-                    prevIndex = index + 1;
-                }
-
-
-                // TODO: There's likely an edge case of none remaining that's occasionally causing a runtime error
-                var remainingString = Encoding.UTF8.GetString(buffer, prevIndex, bytesRemaining - prevIndex);
-                builder.Append(remainingString);
-            }
-
-            ArrayPool<byte>.Shared.Return(buffer);
-
-            return results;
-        }
-
-        private T DeserializeObject<T>(string objString)
-        {
-            JsonSerializerOptions options = new JsonSerializerOptions()
-            {
-                PropertyNameCaseInsensitive = true
-            };
-            return JsonSerializer.Deserialize<T>(objString, options);
-        }
-
-        private List<T> DeserializeListObject<T>(string objString)
-        {
-            JsonSerializerOptions options = new JsonSerializerOptions()
-            {
-                PropertyNameCaseInsensitive = true
-            };
-            return JsonSerializer.Deserialize<List<T>>(objString, options);
-        }
-
-        /// <summary>
-        /// Uses web request to perform an HTTP to a Riot URI, optionally applying filters
-        /// </summary>
-        /// <param name="uri">The uri to query (jsut the middle of it)</param>
-        /// <param name="filters">The filters to use</param>
-        /// <returns>string of JSON data</returns>
-        private async Task<string> GetAsyncFromRiotApi(string uriQuery, List<Filter> filters)
-        {
-            string uri = "https://" + __req.Region.ToLower() + uriQuery;
-            if (filters.Count > 0) //TODO: improve coding syntax (...list maybe?)
-            {
-                uri += "?";
-                foreach (Filter filt in filters)
-                {
-                    uri += filt.PropertyName + "=" + filt.Value + "&";
-                }
-                uri = uri[0..^1]; // Trim last &
-            }
-
-            HttpWebRequest request = (HttpWebRequest)WebRequest.Create(uri);
-            request.AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate;
-            request.Headers = new WebHeaderCollection
-            {
-                "Accept: application/json",
-                "X-Riot-Token: " + __req.ApiKey
-            };
-
-            using (HttpWebResponse response = (HttpWebResponse)await request.GetResponseAsync())
-            using (Stream stream = response.GetResponseStream())
-            using (StreamReader reader = new StreamReader(stream))
-            {
-                return await reader.ReadToEndAsync();
-            }
-        }
-
-        /// <summary>
-        /// Uses web request to perform an HTTP to a certain URI
-        /// </summary>
-        /// <param name="uri">The uri to query (jsut the middle of it)</param>
-        /// <returns>String of JSON data</returns>
-        private async Task<string> GetAsync(string uri)
-        {
-            HttpWebRequest request = (HttpWebRequest)WebRequest.Create(uri);
-            request.AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate;
-            request.Headers = new WebHeaderCollection
-            {
-                "Accept: application/json",
-            };
-
-            using (HttpWebResponse response = (HttpWebResponse)await request.GetResponseAsync())
-            using (Stream stream = response.GetResponseStream())
-            using (StreamReader reader = new StreamReader(stream))
-            {
-                return await reader.ReadToEndAsync();
-            }
-        }
-
-        /// <summary>
-        /// Match delegate between ParticipantDto and ParticipantIdentityDto
-        /// </summary>
-        /// <param name="p"></param>
-        /// <returns></returns>
-        private bool IsSummonerMatch(ParticipantIdentityDto p)
-        {
-            return p.Player.AccountId == __summoner.AccountId;
-        }
 
         private string GetQueueStringMapping(int queueId)
         {
@@ -430,42 +263,14 @@ namespace RiotReactApp.Controllers
             else { return false;  }
         }
 
-        private GameResponse HandleBadRequest(WebException e, GetRequest reqType)
+        // <summary>
+        /// Match delegate between ParticipantDto and ParticipantIdentityDto
+        /// </summary>
+        /// <param name="p"></param>
+        /// <returns></returns>
+        private bool IsSummonerMatch(ParticipantIdentityDto p)
         {
-
-            HttpWebResponse resp = e.Response as HttpWebResponse;
-            GameResponse gameResp = new GameResponse
-            {
-                StatusCode = resp.StatusCode,
-                ErrorMessage = e.Message,
-                Games = new List<Game>()
-            };
-
-            if (gameResp.StatusCode == HttpStatusCode.Forbidden || gameResp.StatusCode == HttpStatusCode.Unauthorized)
-            {
-                gameResp.ErrorMessage = "Incorrect or expired API key";
-            }
-            else if (gameResp.StatusCode == HttpStatusCode.NotFound)
-            {
-                if (reqType == GetRequest.Summoner)
-                {
-                    gameResp.ErrorMessage = "Summoner not found";
-                }
-                else if (reqType == GetRequest.Matches)
-                {
-                    gameResp.ErrorMessage = "No matches found for summoner";
-                }
-                else
-                {
-                    gameResp.ErrorMessage = "Unknown error";
-                }
-            }
-            else // 5xx errors
-            {
-                gameResp.ErrorMessage = "Internal server error; please try again in a few seconds";
-            }
-
-            return gameResp;
+            return p.Player.AccountId == __summoner.AccountId;
         }
 
         #endregion private methods

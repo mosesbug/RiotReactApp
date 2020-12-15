@@ -7,10 +7,11 @@ import registerServiceWorker from './registerServiceWorker';
 
 const baseUrl = document.getElementsByTagName('base')[0].getAttribute('href');
 const rootElement = document.getElementById('root');
+rootElement.classList.add("base-background");
 
 ReactDOM.render(
   <BrowserRouter basename={baseUrl}>
-    <App />
+        <App />
   </BrowserRouter>,
   rootElement);
 

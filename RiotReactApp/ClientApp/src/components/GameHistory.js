@@ -78,7 +78,6 @@ export class GameHistory extends Component {
         let tableTitle = (games.length && games.length > 0) ?
             this.__submittedName + "'s last 10 games" : "";
 
-        // TODO: Make the table captions better!
         return (
             <table className="table" aria-labelledby="tabelLabel">
                 <caption>{tableTitle}</caption>
