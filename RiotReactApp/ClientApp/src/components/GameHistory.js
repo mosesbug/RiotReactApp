@@ -31,7 +31,7 @@ export class GameHistory extends Component {
             <div>
                 {this.renderFormAndCardSection(state.cardStats)}
                 <br></br>
-                { this.renderGamesTable(state.games) }
+                { this.renderGamesTable(state) }
             </div>
         );
     }
@@ -153,9 +153,10 @@ export class GameHistory extends Component {
         return this.state.region.length > 0 ? this.state.region : this.__initialRegion;
     }
 
-    renderGamesTable(games) {
+    renderGamesTable(state) {
+        const games = state.games;
         let tableTitle = (games.length && games.length > 0) ?
-            this.__submittedName + "'s last 10 games" : "";
+            state.cardStats.summonerName + "'s last " + games.length + " games" : "";
 
         return (
             <table className="table" aria-labelledby="tabelLabel">
@@ -170,7 +171,7 @@ export class GameHistory extends Component {
                     <th>Game Mode</th>
                     </tr>
                 </thead>
-                { this.renderGameTableBodyOuter(games) }
+                { this.renderGameTableBodyOuter(state.games) }
             </table>
         );
     }
