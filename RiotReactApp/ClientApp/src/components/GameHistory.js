@@ -1,5 +1,7 @@
 import React, { Component } from "react";
+import { PieChart } from 'react-minimal-pie-chart';
 import './NavMenu.css';
+
 
 export class GameHistory extends Component {
     static displayName = GameHistory.name;
@@ -11,7 +13,7 @@ export class GameHistory extends Component {
     constructor(props) {
         super(props);
         this.state = {
-            games: [], loading: true, tableLoading: false,
+            games: [], cardStats: [], loading: true, tableLoading: false,
             summonerName: "", region: ""
         };
 
@@ -24,25 +26,99 @@ export class GameHistory extends Component {
         this.populatePage();
     }
 
-    renderPage(games) {
+    renderPage(state) {
         return (
             <div>
-                { this.renderEntryForm() } 
-                { this.renderGamesTable(games) }
+                {this.renderFormAndCardSection(state.cardStats)}
+                <br></br>
+                { this.renderGamesTable(state.games) }
             </div>
         );
     }
 
     renderEntryForm() {
         return (
-            <div className="submit-forms">
+            <div className="submit-forms border-radius-five">
                 <form onSubmit={this.onEntryFormSubmit}>
                     <p>
-                        <input type="text" placeholder="Summoner Name" value={this.state.summonerName} onChange={this.onChangeInput} name="SummonerName" minLength="3" maxLength="16" />
+                        <input className="border-radius-five" type="text" placeholder="Summoner Name" value={this.state.summonerName} onChange={this.onChangeInput} name="SummonerName" minLength="3" maxLength="16" />
                         {this.getRegionSelect()}
                     </p>
-                    <p><button>Get Match History</button></p>
+                    <p><button className="border-radius-five">Get Match History</button></p>
                 </form>
+            </div>
+        );
+    }
+
+    // Profile icon + Summoner Name + Summoner Level
+    renderSummonerInfoDisplay(cardStats) {
+        return (
+            <div className="image-medium">
+                <p className="card-value-text"><img src={cardStats.profileIconLink} alt=""></img> {cardStats.summonerName}</p>
+                <p className="card-light-text margin-bottom">Lvl</p>
+                <strong className="card-value-text">{cardStats.summonerLevel}</strong>
+            </div>
+        );
+    }
+
+    // Winrate + KDA
+    renderPerformanceStats(cardStats) {
+        return (
+            <div>
+                <p className="win-loss-piechart">{this.renderWinLossChart(cardStats)}</p>
+                <p className="card-light-text margin-bottom">KDA</p>
+                <strong className="card-value-text">{cardStats.kda}</strong>
+            </div>
+        );
+    }
+
+    renderWinLossChart(cardStats) {
+        return (
+            <PieChart
+                data={[
+                    { title: cardStats.winrate + '%', label: this.renderWLabel, labelPosition: 75, value: cardStats.winrate, color: 'lightblue', key: 'W' },
+                    { title: (100 - cardStats.winrate) + '%', label: this.renderLLabel, labelPosition: 75, value: 100 - cardStats.winrate, color: 'lightpink', key: 'L' }
+                ]}
+                label={({ dataEntry }) => dataEntry.key}
+            />
+        );
+    }
+
+    renderPlayerRating(cardStats) {
+        return (
+            <div className="rating">
+                <p className="card-light-text">Rating</p>
+                <strong className="rating-text card-value-text">{cardStats.rating}</strong>
+            </div>
+        );
+    }
+
+    renderSummonerCardInner(cardStats) {
+        return (
+            <div className="summoner-card inner-card">
+                {this.renderSummonerInfoDisplay(cardStats)}
+                {this.renderPerformanceStats(cardStats)}
+                {this.renderPlayerRating(cardStats)}
+            </div>
+        );
+    }
+
+    renderSummonerCard(cardStats) {
+        let summonerCardInner = cardStats && cardStats.summonerName ? this.renderSummonerCardInner(cardStats) :
+            <div></div>;
+
+        return (
+            <div>
+                {summonerCardInner}
+            </div>
+        );
+    }
+
+    renderFormAndCardSection(games) {
+        return (
+            <div className="upper-section">
+                { this.renderEntryForm() }
+                { this.renderSummonerCard(games)}
             </div>
         );
     }
@@ -61,8 +137,11 @@ export class GameHistory extends Component {
     onEntryFormSubmit(event) {
         // TODO: Make a debug mode
         // alert("Summoner name: " + this.getSummonerName() + "\nRegion: " + this.getRegion()); // MHB TURN OFF FOR NOW
-        this.__submittedName = this.getSummonerName();
-        this.populateData();
+        const summName = this.getSummonerName();
+        if (summName !== "") {
+            this.__submittedName = this.getSummonerName();
+            this.populateData();
+        }
         event.preventDefault();
     }
 
@@ -86,6 +165,7 @@ export class GameHistory extends Component {
                     <th>Date</th>
                     <th>Win/Loss</th>
                     <th>Champion</th>
+                    <th>KDA</th>
                     <th>Game Length (minutes)</th>
                     <th>Game Mode</th>
                     </tr>
@@ -118,6 +198,7 @@ export class GameHistory extends Component {
                         <td>{game.date}</td>
                         <td>{game.result}</td>
                         <td>{this.renderChampionDisplay(game)}</td>
+                        <td>{game.kills} / {game.deaths} / {game.assists}</td>
                         <td>{game.gameLength}</td>
                         <td>{game.queueType}</td>
                     </tr>
@@ -141,7 +222,7 @@ export class GameHistory extends Component {
 
     getRegionSelect() {
         return (
-            <select id="region" name="Region Select" value={ this.state.region } onChange={this.onSelectRegion} placeholder="Select your region">
+            <select className="region-select" id="region" name="Region Select" value={ this.state.region } onChange={this.onSelectRegion} placeholder="Select your region">
                 <option value="NA1">NA</option>
                 <option value="EUW1">EUW</option>
                 <option value="EUN1">EUNE</option>
@@ -153,12 +234,10 @@ export class GameHistory extends Component {
     render() {
         let contents = this.state.loading
             ? <p><em>Loading...</em></p>
-            : this.renderPage(this.state.games);
+            : this.renderPage(this.state);
 
         return (
             <div>
-            <h1 id="tabelLabel" >League Match History</h1>
-            <p>This page demonstrates fetching data from the Riot Games APIs for a player's recent matches data.</p>
                 {contents}
             </div>
         );
@@ -174,22 +253,15 @@ export class GameHistory extends Component {
             })
         });
 
-        // TODO: Add a summoner info card on the left side of the table?
-        // Some cool info to include:
-            // 1) Profile icon
-            // 2) Summoner level
-            // 3) Name
-            // 4) Average KDA
-            // 5) Favorite champ
         const data = await response.json();
 
         if (data.statusCode !== 200) {
 
             this.handleBadRequest(data);
-            this.setState({ games: [], tableLoading: false });
+            this.setState({ games: [], cardStats: [], tableLoading: false });
         }
         else {
-            this.setState({ games: data.games, tableLoading: false });
+            this.setState({ games: data.games, cardStats: data.cardStats, tableLoading: false });
         }
     }
 

@@ -138,6 +138,17 @@ namespace RiotReactApp.HttpHelpers
         {
 
             HttpWebResponse resp = e.Response as HttpWebResponse;
+
+            if (resp == null)
+            {
+                return new GameResponse
+                {
+                    StatusCode = HttpStatusCode.BadRequest,
+                    ErrorMessage = "Unknown error - please try again in a few seconds",
+                    Games = new List<Game>()
+                };
+            }
+
             GameResponse gameResp = new GameResponse
             {
                 StatusCode = resp.StatusCode,
@@ -161,12 +172,16 @@ namespace RiotReactApp.HttpHelpers
                 }
                 else
                 {
-                    gameResp.ErrorMessage = "Unknown error";
+                    gameResp.ErrorMessage = "Unknown error - please try again in a few seconds";
                 }
+            }
+            else if (gameResp.StatusCode == HttpStatusCode.TooManyRequests)
+            {
+                gameResp.ErrorMessage = "Slow your roll... too many requests too handle";
             }
             else // 5xx errors
             {
-                gameResp.ErrorMessage = "Internal server error; please try again in a few seconds";
+                gameResp.ErrorMessage = "Internal server error - please try again in a few seconds";
             }
 
             return gameResp;

@@ -5,7 +5,7 @@ namespace RiotReactApp
     {
         public string AccountId { get; set; }
 
-        public int ProfileIconId { get; set; } // TODO: Get icon and show it
+        public int ProfileIconId { get; set; }
 
         public long RevisionDate { get; set; }
 

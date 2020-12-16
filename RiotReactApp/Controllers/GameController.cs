@@ -33,6 +33,14 @@ namespace RiotReactApp.Controllers
 
         private string __version;
 
+        private int __totalKills;
+
+        private int __totalDeaths;
+
+        private int __totalAssists;
+
+        private int __totalWins;
+
         #endregion fields
 
         #region constructors
@@ -139,16 +147,18 @@ namespace RiotReactApp.Controllers
              *  4) ChampionName - for now just return return champion int from MatchReferenceDto (TODO: Also return the image eventually)
              *  5) ChampionImage - The href link
              *  6) GameLength - natchId -> MatchDto get request -> gameDuration
+             *  7) Kills
+             *  8) Deaths
+             *  9) Assists
              *  
              *  TODO: 
-             *  1) KDA
-             *  2) Items built (w/ icons)
+             *  1) Items built (w/ icons)
              *  
-             *  TODO - Player card:
+             *  Player card:
              *  1) Overall KDA
-             *  2) Games played
+             *  2) Summoner Level
              *  3) Win rate
-             *  4) Favorite champ
+             *  4) Profile icon
              *  5) Custom report card rating
              */
                 Game currGame = new Game();
@@ -163,7 +173,15 @@ namespace RiotReactApp.Controllers
                 ParticipantIdentityDto participantId = match.ParticipantIdentities.Find(IsSummonerMatch);
                 ParticipantDto participant = match.Participants[participantId.ParticipantId - 1];
                 
-                currGame.Result = participant.Stats.Win ? "Win" : "Loss"; // (1) Result
+                if (participant.Stats.Win) // (1) Result
+                {
+                    currGame.Result = "Win";
+                    __totalWins++;
+                }
+                else
+                {
+                    currGame.Result = "Loss";
+                }
 
                 // TODO: Maybe actually map to http://http://static.developer.riotgames.com/docs/lol/queues.json
                 currGame.QueueType = GetQueueStringMapping(matchRef.Queue); // (2) QueueType
@@ -176,10 +194,21 @@ namespace RiotReactApp.Controllers
                 currGame.ChampionName = champTuple.Item1; // (4) ChampionName
                 currGame.ChampionImage = champTuple.Item2; // (5) ChampionImage
 
-                currGame.GameLength = (int)(match.GameDuration / 60); // (7) GameLength
+                currGame.GameLength = (int)(match.GameDuration / 60); // (6) GameLength
+
+                currGame.Kills = participant.Stats.Kills; // (7) Kills
+                __totalKills += currGame.Kills;
+                currGame.Deaths = participant.Stats.Deaths; // (8) Deaths
+                __totalDeaths += currGame.Deaths;
+                currGame.Assists = participant.Stats.Assists; // (9) Assists
+                __totalAssists += currGame.Assists;
 
                 gamesToReturn.Add(currGame); // Woohoo
             }
+
+            double kda = (__totalKills + __totalAssists) / (__totalDeaths * 1.0);
+            double winRate = (double)__totalWins / gameResponse.Games.Count() * 100;
+            gameResponse.CardStats = GetSummonerCardInfo(kda, winRate);
 
             return gameResponse;
         }
@@ -271,6 +300,88 @@ namespace RiotReactApp.Controllers
         private bool IsSummonerMatch(ParticipantIdentityDto p)
         {
             return p.Player.AccountId == __summoner.AccountId;
+        }
+
+        /// <summary>
+        /// Adds summoner card info to our game response
+        /// </summary>
+        /// <param name="kda">The player's average kda</param>
+        /// <param name="wr">The winrate out of 100</param>
+        private SummonerCard GetSummonerCardInfo(double kda, double wr)
+        {
+            return new SummonerCard
+            {
+                ProfileIconLink = "http://ddragon.leagueoflegends.com/cdn/" + __version + "/img/profileicon/" + __summoner.ProfileIconId + ".png",
+                SummonerLevel = __summoner.SummonerLevel,
+                SummonerName = __summoner.Name,
+                KDA = Math.Round(kda, 2) + "",
+                Winrate = wr,
+                Rating = DeterminePlayerRating(kda, wr),
+            };
+        }
+
+        /// <summary>
+        /// Determine a rating to give the player
+        /// </summary>
+        /// <param name="kda">The player's average kda</param>
+        /// <param name="wr">The winrate out of 100</param>
+        /// <returns>The string of the players rating</returns>
+        private string DeterminePlayerRating(double kda, double wr)
+        {
+            double kdaCoeff = 0.8;
+            double wrCoeff = 0.2;
+
+            // kda < 1 = really bad
+            // kda >1 and <2 = below average
+            // kda >2 and <2.5 = average
+            // kda >2.5 and <3.5 = good
+            // kda >3.5 and <5 = really good
+            // kda > 5 = your a god (make a cap here)
+
+            kda *= 2;
+            wr /= 10;
+
+            double score = (kda * kdaCoeff) + (wr * wrCoeff);
+            return ScoreToRating(score);
+        }
+
+        /// <summary>
+        /// Calculates the player card rating
+        /// </summary>
+        /// <param name="score">The player's weighted score</param>
+        /// <returns></returns>
+        private string ScoreToRating(double score)
+        {
+            if (score >= 9)
+            {
+                return "S+";
+            }
+            else if (score >= 7.5)
+            {
+                return "S";
+            }
+            else if (score >= 6)
+            {
+                return "A";
+
+            }
+            else if (score >= 5)
+            {
+                return "B";
+            }
+            else if (score >= 4)
+            {
+                return "C";
+            }
+            else if (score >= 3)
+            {
+                return "D";
+            }
+            else
+            {
+                return "F";
+            }
+
         }
 
         #endregion private methods

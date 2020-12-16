@@ -1,4 +1,4 @@
-﻿using System;
+﻿using RiotReactApp.HttpHelpers;
 using System.Collections.Generic;
 using System.Net;
 
@@ -11,5 +11,7 @@ namespace RiotReactApp
         public string ErrorMessage { get; set; } // Only set for failed requests
 
         public IEnumerable<Game> Games { get; set; }
+
+        public SummonerCard CardStats { get; set; }
     }
 }

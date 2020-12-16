@@ -15,5 +15,11 @@ namespace RiotReactApp
         public int GameLength { get; set; }
 
         public string QueueType { get; set; }
+
+        public int Kills { get; set; }
+
+        public int Deaths { get; set; }
+
+        public int Assists { get; set; }
     }
 }
