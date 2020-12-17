@@ -30,20 +30,18 @@ export class GameHistory extends Component {
         return (
             <div>
                 {this.renderFormAndCardSection(state.cardStats)}
-                <br></br>
-                { this.renderGamesTable(state) }
+                {this.renderGamesTable(state)}
             </div>
         );
     }
 
     renderEntryForm() {
         return (
-            <div className="submit-forms border-radius-five">
+            <div className="submit-forms">
                 <form onSubmit={this.onEntryFormSubmit}>
-                    <p>
-                        <input className="border-radius-five" type="text" placeholder="Summoner Name" value={this.state.summonerName} onChange={this.onChangeInput} name="SummonerName" minLength="3" maxLength="16" />
-                        {this.getRegionSelect()}
-                    </p>
+                    <input className="border-radius-left" placeholder="Summoner Name" value={this.state.summonerName} onChange={this.onChangeInput} name="SummonerName" minLength="3" maxLength="16" />
+                    <button class="btn btn-primary sicon-search sicon-white border-radius-right" type="submit">Search</button>
+                    {this.getRegionSelect()}
                 </form>
             </div>
         );
@@ -54,7 +52,7 @@ export class GameHistory extends Component {
         return (
             <div className="image-medium left-inner-card">
                 <p className="card-value-text"><img src={cardStats.profileIconLink} alt=""></img> {cardStats.summonerName}</p>
-                <p className="card-light-text margin-bottom">Lvl</p>
+                <p className="card-light-text no-margin-bottom">Lvl</p>
                 <strong className="card-value-text">{cardStats.summonerLevel}</strong>
             </div>
         );
@@ -65,7 +63,7 @@ export class GameHistory extends Component {
         return (
             <div>
                 <p className="win-loss-piechart">{this.renderWinLossChart(cardStats)}</p>
-                <p className="card-light-text margin-bottom">KDA</p>
+                <p className="card-light-text no-margin-bottom">KDA</p>
                 <strong className="card-value-text">{cardStats.kda}</strong>
             </div>
         );
@@ -127,11 +125,11 @@ export class GameHistory extends Component {
         );
     }
 
-    renderFormAndCardSection(games) {
+    renderFormAndCardSection(cardStats) {
         return (
             <div className="upper-section">
                 { this.renderEntryForm() }
-                { this.renderSummonerCard(games)}
+                { this.renderSummonerCard(cardStats)}
             </div>
         );
     }
@@ -152,7 +150,7 @@ export class GameHistory extends Component {
         // alert("Summoner name: " + this.getSummonerName() + "\nRegion: " + this.getRegion()); // MHB TURN OFF FOR NOW
         const summName = this.getSummonerName();
         if (summName !== "") {
-            this.__submittedName = this.getSummonerName();
+            this.__submittedName = summName;
             this.populateData();
         }
         event.preventDefault();
@@ -236,7 +234,7 @@ export class GameHistory extends Component {
 
     getRegionSelect() {
         return (
-            <select className="region-select" id="region" name="Region Select" value={ this.state.region } onChange={this.onSelectRegion} placeholder="Select your region">
+            <select className="region-select border-radius-point-five" id="region" name="Region Select" value={ this.state.region } onChange={this.onSelectRegion} placeholder="Select your region">
                 <option value="NA1">NA</option>
                 <option value="EUW1">EUW</option>
                 <option value="EUN1">EUNE</option>

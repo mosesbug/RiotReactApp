@@ -12,6 +12,15 @@
 .upper-section {
     display: flex;
     justify-content: space-between;
+    margin-bottom: 1em;
+}
+
+.right-side-icon {
+    float: right;
+}
+
+.searchIcon {
+    padding: 0.5em;
 }
 
 .summoner-card {
@@ -67,7 +76,7 @@ html {
     opacity: 0.5;
 }
 
-.margin-bottom {
+.no-margin-bottom {
     margin-bottom: 0em;
 }
 
@@ -86,19 +95,31 @@ html {
     padding-left: 1em;
 }
 
-.border-radius-five {
-    border-radius: 5px !important;
+.border-radius-left {
+    border-radius: 0.5em 0em 0em 0.5em !important;
+}
+
+.border-radius-right {
+    border-radius: 0em 0.5em 0.5em 0em !important;
+}
+
+.border-radius-point-five {
+    border-radius: 0.5em;
 }
 
 .submit-forms form,
 .submit-forms form div {
-    display: inline;
+    display: inline-flex;
+}
+
+.submit-button {
+    color: cornflowerblue !important;
+    flex: 1;
 }
 
 .region-select {
-    height: 1.81em;
     margin-left: 0.5em;
-    border-radius: 5px;
+    flex: 1;
 }
 
 .center-title {
