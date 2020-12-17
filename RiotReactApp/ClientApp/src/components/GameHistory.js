@@ -44,7 +44,6 @@ export class GameHistory extends Component {
                         <input className="border-radius-five" type="text" placeholder="Summoner Name" value={this.state.summonerName} onChange={this.onChangeInput} name="SummonerName" minLength="3" maxLength="16" />
                         {this.getRegionSelect()}
                     </p>
-                    <p><button className="border-radius-five">Get Match History</button></p>
                 </form>
             </div>
         );
