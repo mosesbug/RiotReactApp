@@ -53,7 +53,7 @@ export class GameHistory extends Component {
     // Profile icon + Summoner Name + Summoner Level
     renderSummonerInfoDisplay(cardStats) {
         return (
-            <div className="image-medium">
+            <div className="image-medium left-inner-card">
                 <p className="card-value-text"><img src={cardStats.profileIconLink} alt=""></img> {cardStats.summonerName}</p>
                 <p className="card-light-text margin-bottom">Lvl</p>
                 <strong className="card-value-text">{cardStats.summonerLevel}</strong>
@@ -75,13 +75,27 @@ export class GameHistory extends Component {
     renderWinLossChart(cardStats) {
         return (
             <PieChart
-                data={[
-                    { title: cardStats.winrate + '%', label: this.renderWLabel, labelPosition: 75, value: cardStats.winrate, color: 'lightblue', key: 'W' },
-                    { title: (100 - cardStats.winrate) + '%', label: this.renderLLabel, labelPosition: 75, value: 100 - cardStats.winrate, color: 'lightpink', key: 'L' }
-                ]}
+                data={this.getPieChartData(cardStats.winrate)}
                 label={({ dataEntry }) => dataEntry.key}
+                labelPosition={this.getLabelPosition(cardStats.winrate)}
             />
         );
+    }
+
+    getPieChartData(winrate) {
+        return winrate === 100 ?
+            [
+                { title: winrate + '%', value: winrate, color: 'lightblue', key: 'W' },
+            ] :
+            [
+                { title: winrate + '%', value: winrate, color: 'lightblue', key: 'W' },
+                { title: (100 - winrate) + '%', value: 100 - winrate, color: 'lightpink', key: 'L' }
+            ];
+    }
+
+    getLabelPosition(winrate) {
+        return winrate === 100 ?
+            0 : 50;
     }
 
     renderPlayerRating(cardStats) {
@@ -167,7 +181,7 @@ export class GameHistory extends Component {
                     <th>Win/Loss</th>
                     <th>Champion</th>
                     <th>KDA</th>
-                    <th>Game Length (minutes)</th>
+                    <th>Game Length</th>
                     <th>Game Mode</th>
                     </tr>
                 </thead>
@@ -200,7 +214,7 @@ export class GameHistory extends Component {
                         <td>{game.result}</td>
                         <td>{this.renderChampionDisplay(game)}</td>
                         <td>{game.kills} / {game.deaths} / {game.assists}</td>
-                        <td>{game.gameLength}</td>
+                        <td>{game.gameLength}m</td>
                         <td>{game.queueType}</td>
                     </tr>
                 )}

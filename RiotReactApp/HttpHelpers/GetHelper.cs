@@ -10,6 +10,9 @@ using System.Threading.Tasks;
 
 namespace RiotReactApp.HttpHelpers
 {
+    /// <summary>
+    /// A helper class meant to assist in HTTP Get calls
+    /// </summary>
     public class GetHelper
     {
         #region private fields
@@ -187,68 +190,27 @@ namespace RiotReactApp.HttpHelpers
             return gameResp;
         }
 
-        // TODO: Re-factor to only handle a single request body
         /// <summary>
-        /// Gets the body from an HTTP request
+        /// Reads from the body of an HTTP response and serializes it to the passed in type
         /// </summary>
-        /// <param name="requestBody">The Stream body from an HTTPRequest</param>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="body"></param>
         /// <returns></returns>
-        public static async Task<List<string>> GetListOfStringsFromBody(Stream requestBody)
+        public async static Task<T> ReadFromBody<T>(Stream body)
         {
-            StringBuilder builder = new StringBuilder();
-            byte[] buffer = ArrayPool<byte>.Shared.Rent(4096);
-            List<string> results = new List<string>();
-
-            while (true)
+            JsonSerializerOptions options = new JsonSerializerOptions()
             {
-                var bytesRemaining = await requestBody.ReadAsync(buffer, offset: 0, buffer.Length);
-
-                if (bytesRemaining == 0)
-                {
-                    results.Add(builder.ToString());
-                    break;
-                }
-
-                // Instead of adding the entire buffer into the StringBuilder
-                // only add the remainder after the last \n in the array.
-                var prevIndex = 0;
-                int index;
-                while (true)
-                {
-                    index = Array.IndexOf(buffer, (byte)'\n', prevIndex);
-                    if (index == -1)
-                    {
-                        break;
-                    }
-
-                    var encodedString = Encoding.UTF8.GetString(buffer, prevIndex, index - prevIndex);
-
-                    if (builder.Length > 0)
-                    {
-                        // If there was a remainder in the string buffer, include it in the next string.
-                        results.Add(builder.Append(encodedString).ToString());
-                        builder.Clear();
-                    }
-                    else
-                    {
-                        results.Add(encodedString);
-                    }
-
-                    // Skip past last \n
-                    prevIndex = index + 1;
-                }
-
-
-                // TODO: There's likely an edge case of none remaining that's occasionally causing a runtime error
-                var remainingString = Encoding.UTF8.GetString(buffer, prevIndex, bytesRemaining - prevIndex);
-                builder.Append(remainingString);
-            }
-
-            ArrayPool<byte>.Shared.Return(buffer);
-
-            return results;
+                PropertyNameCaseInsensitive = true,
+            };
+            return await JsonSerializer.DeserializeAsync<T>(body, options);
         }
 
+        /// <summary>
+        /// Deserialize a JSON string into a stringly-typed object
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="objString"></param>
+        /// <returns></returns>
         public static T DeserializeObject<T>(string objString)
         {
             JsonSerializerOptions options = new JsonSerializerOptions()

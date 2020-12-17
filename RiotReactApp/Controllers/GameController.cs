@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Buffers;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -57,7 +58,6 @@ namespace RiotReactApp.Controllers
         [HttpPost]
         public async Task<GameResponse> Post()
         {
-            List<string> bodyComponents = await GetHelper.GetListOfStringsFromBody(Request.Body);
             List<Request> requests = new List<Request>();
             List<Game> gamesToReturn = new List<Game>();
             GameResponse gameResponse = new GameResponse
@@ -67,14 +67,8 @@ namespace RiotReactApp.Controllers
                 Games = gamesToReturn
             };
 
-            foreach (string str in bodyComponents)
-            {
-                Console.WriteLine(str);
-                requests.Add(GetHelper.DeserializeObject<Request>(str));
-            }
-
-            __req = requests.First();
-            __req.ApiKey = Environment.GetEnvironmentVariable("X-Riot-Token", EnvironmentVariableTarget.Machine); // Windows only (TODO: instructions for other OS?)
+            __req = await GetHelper.ReadFromBody<Request>(Request.Body);
+            __req.ApiKey = GetApiKey();
           
 
             if (__req.ApiKey == null)
@@ -338,6 +332,8 @@ namespace RiotReactApp.Controllers
             // kda >3.5 and <5 = really good
             // kda > 5 = your a god (make a cap here)
 
+            kda = kda > 5.5 ? 5.5 : kda;
+
             kda *= 2;
             wr /= 10;
 
@@ -382,6 +378,22 @@ namespace RiotReactApp.Controllers
                 return "F";
             }
 
+        }
+
+        /// <summary>
+        /// Returns the API key
+        /// </summary>
+        /// <returns></returns>
+        private string GetApiKey()
+        {
+            if (Debugger.IsAttached)
+            {
+                return Environment.GetEnvironmentVariable("X-Riot-Token", EnvironmentVariableTarget.Machine); // Windows only (TODO: instructions for other OS?)
+            }
+            else
+            {
+                return Environment.GetEnvironmentVariable("X-Riot-Token", EnvironmentVariableTarget.Machine);
+            }
         }
 
         #endregion private methods
