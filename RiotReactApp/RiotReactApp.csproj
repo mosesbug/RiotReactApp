@@ -24,7 +24,6 @@
     <Folder Include="MatchData\" />
     <Folder Include="ChampData\" />
     <Folder Include="MiscellaneousRiotData\" />
-    <Folder Include="NewFolder\" />
     <Folder Include="PlayerData\" />
   </ItemGroup>
 

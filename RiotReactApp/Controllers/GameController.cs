@@ -1,12 +1,8 @@
 ﻿using System;
-using System.Buffers;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.IO;
 using System.Linq;
 using System.Net;
-using System.Text;
-using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
@@ -69,7 +65,7 @@ namespace RiotReactApp.Controllers
 
             __req = await GetHelper.ReadFromBody<Request>(Request.Body);
             __req.ApiKey = GetApiKey();
-          
+
 
             if (__req.ApiKey == null)
             {
@@ -115,7 +111,7 @@ namespace RiotReactApp.Controllers
             __matches = matchesGet.Value as MatchlistDto;
 
             // Get Queue.json data - TODO: Maybe only need to do this one time
-            HttpGetResponse versionsGet = await getHelper.GetAsync<List<string>>("https://ddragon.leagueoflegends.com/api/versions.json");
+            HttpGetResponse versionsGet = await GetHelper.GetAsync<List<string>>("https://ddragon.leagueoflegends.com/api/versions.json");
             if (versionsGet.Ex != null)
             {
                 return GetHelper.HandleBadRequest(versionsGet.Ex, GetRequest.Versions);
@@ -123,7 +119,7 @@ namespace RiotReactApp.Controllers
             __version = (versionsGet.Value as List<string>).First();
 
             // Get Champs data - TODO: Maybe only need to do this one time
-            HttpGetResponse championsGet = await getHelper.GetAsync<ChampionsJson>("http://ddragon.leagueoflegends.com/cdn/" + __version + "/data/en_US/champion.json");
+            HttpGetResponse championsGet = await GetHelper.GetAsync<ChampionsJson>("http://ddragon.leagueoflegends.com/cdn/" + __version + "/data/en_US/champion.json");
             if (championsGet.Ex != null)
             {
                 return GetHelper.HandleBadRequest(championsGet.Ex, GetRequest.Champions);
@@ -392,6 +388,8 @@ namespace RiotReactApp.Controllers
             }
             else
             {
+                // TODO: Setup Dynamo DB web service to enable accessing riot API key dyanmically
+                // TODO: Once I can access the key programmatically, I can host this app on AWS Amplify
                 return Environment.GetEnvironmentVariable("X-Riot-Token", EnvironmentVariableTarget.Machine);
             }
         }

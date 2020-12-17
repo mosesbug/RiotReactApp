@@ -102,7 +102,7 @@ namespace RiotReactApp.HttpHelpers
         /// </summary>
         /// <param name="uri">The uri to query (jsut the middle of it)</param>
         /// <returns>String of JSON data</returns>
-        public async Task<HttpGetResponse> GetAsync<T>(string uri)
+        public static async Task<HttpGetResponse> GetAsync<T>(string uri)
         {
             string responseBody;
             HttpWebRequest request = (HttpWebRequest)WebRequest.Create(uri);
